@@ -33,3 +33,18 @@ groups/global/*
 .nanoclaw/
 
 agents-sdk-docs
+
+# Python virtual environments
+nanoclaw-venv/
+venv/
+__pycache__/
+*.pyc
+
+# Process IDs
+*.pid
+
+# Repo tokens / credentials
+repo-tokens/
+
+# Temporary test files
+test.*

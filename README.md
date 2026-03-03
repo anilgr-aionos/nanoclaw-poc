@@ -1,180 +1,298 @@
-<p align="center">
-  <img src="assets/nanoclaw-logo.png" alt="NanoClaw" width="400">
-</p>
+# Andy — NanoClaw Personal AI Assistant
 
-<p align="center">
-  An AI assistant that runs agents securely in their own containers. Lightweight, built to be easily understood and completely customized for your needs.
-</p>
+A self-hosted WhatsApp AI personal assistant built on [NanoClaw](https://github.com/anthropics/nanoclaw), integrated with Microsoft Outlook (Email + Calendar) and local Speech-to-Text via OpenAI Whisper.
 
-<p align="center">
-  <a href="https://nanoclaw.dev">nanoclaw.dev</a>&nbsp; • &nbsp;
-  <a href="README_zh.md">中文</a>&nbsp; • &nbsp;
-  <a href="https://discord.gg/VDdww8qS42"><img src="https://img.shields.io/discord/1470188214710046894?label=Discord&logo=discord&v=2" alt="Discord" valign="middle"></a>&nbsp; • &nbsp;
-  <a href="repo-tokens"><img src="repo-tokens/badge.svg" alt="34.9k tokens, 17% of context window" valign="middle"></a>
-</p>
+> **"If a service has an API, Andy can access it."**
 
-Using Claude Code, NanoClaw can dynamically rewrite its code to customize its feature set for your needs.
+---
 
-**New:** First AI assistant to support [Agent Swarms](https://code.claude.com/docs/en/agent-teams). Spin up teams of agents that collaborate in your chat.
+## Features
 
-## Why I Built NanoClaw
+- 💬 **Natural Language Queries** — Ask anything, get answers on WhatsApp
+- 📧 **Send Emails** — *"Send a mail to Vineet that meeting is at 3pm"*
+- 📨 **Read Emails** — *"Show my last 5 emails"*
+- 📅 **Schedule Meetings** — *"Book a meeting tomorrow at 10am called Team Sync"*
+- 🗓️ **List Calendar Events** — Returns events with Teams meeting join links
+- ❌ **Cancel Meetings** — *"Cancel my 3pm meeting"*
+- 🎙️ **Voice Message Support** — Send a voice note → Whisper transcribes → Andy executes
+- 👤 **Contact Name Resolution** — *"Send mail to Eega"* → resolves to eega.krishna@aionos.ai
+- 👥 **Multi-User Support** — Each user gets an isolated workspace
 
-[OpenClaw](https://github.com/openclaw/openclaw) is an impressive project, but I wouldn't have been able to sleep if I had given complex software I didn't understand full access to my life. OpenClaw has nearly half a million lines of code, 53 config files, and 70+ dependencies. Its security is at the application level (allowlists, pairing codes) rather than true OS-level isolation. Everything runs in one Node process with shared memory.
-
-NanoClaw provides that same core functionality, but in a codebase small enough to understand: one process and a handful of files. Claude agents run in their own Linux containers with filesystem isolation, not merely behind permission checks.
-
-## Quick Start
-
-```bash
-git clone https://github.com/qwibitai/NanoClaw.git
-cd NanoClaw
-claude
-```
-
-Then run `/setup`. Claude Code handles everything: dependencies, authentication, container setup and service configuration.
-
-## Philosophy
-
-**Small enough to understand.** One process, a few source files and no microservices. If you want to understand the full NanoClaw codebase, just ask Claude Code to walk you through it.
-
-**Secure by isolation.** Agents run in Linux containers (Apple Container on macOS, or Docker) and they can only see what's explicitly mounted. Bash access is safe because commands run inside the container, not on your host.
-
-**Built for the individual user.** NanoClaw isn't a monolithic framework; it's software that fits each user's exact needs. Instead of becoming bloatware, NanoClaw is designed to be bespoke. You make your own fork and have Claude Code modify it to match your needs.
-
-**Customization = code changes.** No configuration sprawl. Want different behavior? Modify the code. The codebase is small enough that it's safe to make changes.
-
-**AI-native.**
-- No installation wizard; Claude Code guides setup.
-- No monitoring dashboard; ask Claude what's happening.
-- No debugging tools; describe the problem and Claude fixes it.
-
-**Skills over features.** Instead of adding features (e.g. support for Telegram) to the codebase, contributors submit [claude code skills](https://code.claude.com/docs/en/skills) like `/add-telegram` that transform your fork. You end up with clean code that does exactly what you need.
-
-**Best harness, best model.** NanoClaw runs on the Claude Agent SDK, which means you're running Claude Code directly. Claude Code is highly capable and its coding and problem-solving capabilities allow it to modify and expand NanoClaw and tailor it to each user.
-
-## What It Supports
-
-- **Messenger I/O** - Message NanoClaw from your phone. Supports WhatsApp, Telegram, Discord, Slack, Signal and headless operation.
-- **Isolated group context** - Each group has its own `CLAUDE.md` memory, isolated filesystem, and runs in its own container sandbox with only that filesystem mounted to it.
-- **Main channel** - Your private channel (self-chat) for admin control; every group is completely isolated
-- **Scheduled tasks** - Recurring jobs that run Claude and can message you back
-- **Web access** - Search and fetch content from the Web
-- **Container isolation** - Agents are sandboxed in Apple Container (macOS) or Docker (macOS/Linux)
-- **Agent Swarms** - Spin up teams of specialized agents that collaborate on complex tasks. NanoClaw is the first personal AI assistant to support agent swarms.
-- **Optional integrations** - Add Gmail (`/add-gmail`) and more via skills
-
-## Usage
-
-Talk to your assistant with the trigger word (default: `@Andy`):
-
-```
-@Andy send an overview of the sales pipeline every weekday morning at 9am (has access to my Obsidian vault folder)
-@Andy review the git history for the past week each Friday and update the README if there's drift
-@Andy every Monday at 8am, compile news on AI developments from Hacker News and TechCrunch and message me a briefing
-```
-
-From the main channel (your self-chat), you can manage groups and tasks:
-```
-@Andy list all scheduled tasks across groups
-@Andy pause the Monday briefing task
-@Andy join the Family Chat group
-```
-
-## Customizing
-
-NanoClaw doesn't use configuration files. To make changes, just tell Claude Code what you want:
-
-- "Change the trigger word to @Bob"
-- "Remember in the future to make responses shorter and more direct"
-- "Add a custom greeting when I say good morning"
-- "Store conversation summaries weekly"
-
-Or run `/customize` for guided changes.
-
-The codebase is small enough that Claude can safely modify it.
-
-## Contributing
-
-**Don't add features. Add skills.**
-
-If you want to add Telegram support, don't create a PR that adds Telegram alongside WhatsApp. Instead, contribute a skill file (`.claude/skills/add-telegram/SKILL.md`) that teaches Claude Code how to transform a NanoClaw installation to use Telegram.
-
-Users then run `/add-telegram` on their fork and get clean code that does exactly what they need, not a bloated system trying to support every use case.
-
-### RFS (Request for Skills)
-
-Skills we'd like to see:
-
-**Communication Channels**
-- `/add-slack` - Add Slack
-
-**Session Management**
-- `/clear` - Add a `/clear` command that compacts the conversation (summarizes context while preserving critical information in the same session). Requires figuring out how to trigger compaction programmatically via the Claude Agent SDK.
-
-## Requirements
-
-- macOS or Linux
-- Node.js 20+
-- [Claude Code](https://claude.ai/download)
-- [Apple Container](https://github.com/apple/container) (macOS) or [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
+---
 
 ## Architecture
 
 ```
-WhatsApp (baileys) --> SQLite --> Polling loop --> Container (Claude Agent SDK) --> Response
+WhatsApp Message / Voice Note
+          │
+          ▼
+    NanoClaw (VM)
+          │
+          ▼
+  Docker Container
+  Claude Code SDK (Claude AI)
+          │
+          ▼
+  ms-graph-mcp (Custom MCP Server)
+          │
+          ▼
+  Microsoft Graph API
+          │
+          ▼
+  Outlook Mail + Calendar
 ```
 
-Single Node.js process. Agents execute in isolated Linux containers with filesystem isolation. Only mounted directories are accessible. Per-group message queue with concurrency control. IPC via filesystem.
+---
 
-Key files:
-- `src/index.ts` - Orchestrator: state, message loop, agent invocation
-- `src/channels/whatsapp.ts` - WhatsApp connection, auth, send/receive
-- `src/ipc.ts` - IPC watcher and task processing
-- `src/router.ts` - Message formatting and outbound routing
-- `src/group-queue.ts` - Per-group queue with global concurrency limit
-- `src/container-runner.ts` - Spawns streaming agent containers
-- `src/task-scheduler.ts` - Runs scheduled tasks
-- `src/db.ts` - SQLite operations (messages, groups, sessions, state)
-- `groups/*/CLAUDE.md` - Per-group memory
+## Prerequisites
 
-## FAQ
+- Linux VM (Ubuntu 24 recommended)
+- Python 3.x
+- Node.js v20+
+- Docker or Podman
+- WhatsApp account
+- Microsoft 365 account with mailbox
+- Azure AD admin access (for app registration)
+- Paid Anthropic API key
 
-**Why Docker?**
+---
 
-Docker provides cross-platform support (macOS, Linux and even Windows via WSL2) and a mature ecosystem. On macOS, you can optionally switch to Apple Container via `/convert-to-apple-container` for a lighter-weight native runtime.
+## Setup
 
-**Can I run this on Linux?**
+### 1. Clone the Repository
 
-Yes. Docker is the default runtime and works on both macOS and Linux. Just run `/setup`.
+```bash
+git clone https://github.com/your-org/your-repo.git
+cd your-repo
+```
 
-**Is this secure?**
+### 2. Create Python Virtual Environment
 
-Agents run in containers, not behind application-level permission checks. They can only access explicitly mounted directories. You should still review what you're running, but the codebase is small enough that you actually can. See [docs/SECURITY.md](docs/SECURITY.md) for the full security model.
+```bash
+python3 -m venv nanoclaw-venv
+source nanoclaw-venv/bin/activate
+```
 
-**Why no configuration files?**
+### 3. Install Dependencies
 
-We don't want configuration sprawl. Every user should customize NanoClaw so that the code does exactly what they want, rather than configuring a generic system. If you prefer having config files, you can tell Claude to add them.
+```bash
+npm install
+```
 
-**How do I debug issues?**
+### 4. Configure Environment Variables
 
-Ask Claude Code. "Why isn't the scheduler running?" "What's in the recent logs?" "Why did this message not get a response?" That's the AI-native approach that underlies NanoClaw.
+Create a `.env` file in the project root:
 
-**Why isn't the setup working for me?**
+```env
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+AZURE_CLIENT_ID=your-application-client-id
+AZURE_TENANT_ID=your-directory-tenant-id
+AZURE_CLIENT_SECRET=your-client-secret-value
+AZURE_MAILBOX=your-email@yourorg.com
+```
 
-If you have issues, during setup, Claude will try to dynamically fix them. If that doesn't work, run `claude`, then run `/debug`. If Claude finds an issue that is likely affecting other users, open a PR to modify the setup SKILL.md.
+### 5. Install MCP Server Dependencies
 
-**What changes will be accepted into the codebase?**
+```bash
+cd ms-graph-mcp
+npm install
+cd ..
+```
 
-Only security fixes, bug fixes, and clear improvements will be accepted to the base configuration. That's all.
+### 6. Install Whisper (Speech-to-Text)
 
-Everything else (new capabilities, OS compatibility, hardware support, enhancements) should be contributed as skills.
+```bash
+pip install openai-whisper --break-system-packages
+sudo apt-get install -y ffmpeg espeak
+```
 
-This keeps the base system minimal and lets every user customize their installation without inheriting features they don't want.
+### 7. Authenticate WhatsApp
 
-## Community
+```bash
+./start-nanoclaw.sh
+./setup.sh
+```
 
-Questions? Ideas? [Join the Discord](https://discord.gg/VDdww8qS42).
+Scan the QR code with WhatsApp → Settings → Linked Devices → Link a Device.
+
+### 8. Register Your WhatsApp Number
+
+```bash
+sqlite3 store/messages.db \
+  "INSERT INTO registered_groups (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger) \
+   VALUES ('91XXXXXXXXXX@s.whatsapp.net', 'main', 'main', '@Andy', datetime('now'), NULL, 1);"
+```
+
+### 9. Start NanoClaw
+
+```bash
+nohup ./start-nanoclaw.sh > logs/nanoclaw.log 2>&1 &
+```
+
+---
+
+## Azure App Registration
+
+### Required Permissions (Application — not Delegated)
+
+| Permission | Purpose |
+|---|---|
+| `Mail.Send` | Send emails |
+| `Mail.Read` | Read emails |
+| `Mail.ReadWrite` | Read and manage emails |
+| `Calendars.ReadWrite` | Create, read, delete calendar events |
+| `MailboxSettings.Read` | Read mailbox settings |
+| `User.Read.All` | Look up users by name |
+
+> After adding permissions, click **Grant admin consent** in Azure Portal.
+
+### Restrict Mailbox Access (Security)
+
+Ask your IT admin to run in PowerShell:
+
+```powershell
+New-ApplicationAccessPolicy `
+  -AppId "<CLIENT_ID>" `
+  -PolicyScopeGroupId "your-email@yourorg.com" `
+  -AccessRight RestrictAccess `
+  -Description "Restrict NanoClaw to single mailbox"
+```
+
+Verify:
+```powershell
+Test-ApplicationAccessPolicy -AppId "<CLIENT_ID>" -Identity "your-email@yourorg.com"
+# Expected: AccessCheckResult : Granted
+```
+
+---
+
+## Project Structure
+
+```
+nanoclaw/
+├── src/                        # NanoClaw host application
+│   ├── index.ts                # Main orchestrator
+│   ├── channels/whatsapp.ts    # WhatsApp connection + STT handler
+│   ├── container-runner.ts     # Docker container management
+│   └── config.ts               # Configuration
+├── container/
+│   ├── Dockerfile              # Agent container image
+│   └── agent-runner/src/       # Claude Code agent runner
+│       └── index.ts            # MCP server registration + tool config
+├── ms-graph-mcp/               # Custom Microsoft Graph MCP server
+│   └── index.js                # Email + Calendar tools
+├── groups/
+│   └── main/                   # Per-user workspace
+│       ├── CLAUDE.md           # Agent instructions + contacts
+│       ├── contacts.json       # Name to email mappings
+│       └── .mcp.json           # MCP server config
+├── store/
+│   ├── auth/                   # WhatsApp session (do not commit)
+│   └── messages.db             # SQLite message store
+├── logs/                       # Application logs
+└── .env                        # Credentials (do not commit)
+```
+
+---
+
+## Adding New Users
+
+```bash
+# 1. Register their WhatsApp JID
+sqlite3 store/messages.db \
+  "INSERT INTO registered_groups (jid, name, folder, trigger_pattern, added_at, container_config, requires_trigger) \
+   VALUES ('91XXXXXXXXXX@s.whatsapp.net', 'username', 'username', '@Andy', datetime('now'), NULL, 1);"
+
+# 2. Create their workspace
+mkdir -p groups/username
+cp groups/main/CLAUDE.md groups/username/CLAUDE.md
+cp groups/main/contacts.json groups/username/contacts.json
+cp groups/main/.mcp.json groups/username/.mcp.json
+```
+
+---
+
+## Adding New Tools
+
+1. Add a new `server.tool()` block in `ms-graph-mcp/index.js`
+2. Add required Graph API permission in Azure Portal and grant admin consent
+3. Restart NanoClaw (no container rebuild needed)
+
+For tools requiring new MCP servers, also update `allowedTools` and `mcpServers` in `container/agent-runner/src/index.ts` and rebuild the container:
+
+```bash
+./container/build.sh
+```
+
+---
+
+## Usage Examples
+
+Send these messages to your WhatsApp self-chat (prefix with `@Andy`):
+
+```
+@Andy what is today's date?
+@Andy send a mail to vineet that the meeting is at 3pm
+@Andy show my last 5 emails
+@Andy book a meeting tomorrow at 10am called Team Sync ending at 10:30am
+@Andy what's on my calendar this week?
+@Andy cancel my 3pm meeting
+```
+
+Or send a **voice message** — Andy will transcribe and execute it automatically.
+
+---
+
+## Cost
+
+| Component | Cost |
+|---|---|
+| NanoClaw | Free (open source) |
+| Whisper STT | Free (local) |
+| Microsoft Graph API | Free (included in M365) |
+| Claude Sonnet API | ~$5–6 per 1,000 queries |
+| Claude Haiku API | ~$1.5–2 per 1,000 queries |
+
+> A paid **Anthropic API key is required**. Monitor token usage at [console.anthropic.com](https://console.anthropic.com).
+
+---
+
+## Security Considerations
+
+- All WhatsApp data and credentials are stored **locally on your VM**
+- Only conversation text is sent to Anthropic's API for processing
+- Azure Application Access Policy restricts mailbox access to authorized users only
+- Never commit `.env` or `store/auth/` to version control
+- Rotate Azure client secret regularly
+- Review data classification policy before sharing sensitive business information
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|---|---|
+| Agent says "I don't have access" | Check `.mcp.json` in group folder, rebuild container |
+| 403 from Graph API | Grant admin consent in Azure Portal |
+| Roles: NONE in token | Admin consent not granted |
+| Calendar/mail read failing | IT admin needs to configure Application Access Policy |
+| Voice message not transcribed | Verify `ffmpeg` and `whisper` are installed |
+| WhatsApp disconnected | Re-run `./setup.sh` and scan QR code |
+
+---
+
+## Built With
+
+- [NanoClaw](https://github.com/anthropics/nanoclaw) — WhatsApp AI assistant framework
+- [Claude Code SDK](https://docs.anthropic.com) — Anthropic AI agent SDK
+- [Microsoft Graph API](https://graph.microsoft.com) — Microsoft 365 integration
+- [OpenAI Whisper](https://github.com/openai/whisper) — Local speech-to-text
+- [Baileys](https://github.com/WhiskeySockets/Baileys) — WhatsApp Web API
+- [@azure/msal-node](https://github.com/AzureAD/microsoft-authentication-library-for-js) — Azure authentication
+
+---
 
 ## License
 
-MIT
+NanoClaw is open source. See [LICENSE](LICENSE) for details.
+This integration layer is built on top of NanoClaw and follows the same license.

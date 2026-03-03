@@ -1,3 +1,9 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "outlook": {
+      "command": "node",
+      "args": ["/home/gr_anil/nanoclaw-poc/ms-graph-mcp/index.js"],
+      "env": {}
+    }
+  }
 }

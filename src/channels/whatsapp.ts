@@ -1,5 +1,6 @@
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 import makeWASocket, {
@@ -9,9 +10,10 @@ import makeWASocket, {
   fetchLatestWaWebVersion,
   makeCacheableSignalKeyStore,
   useMultiFileAuthState,
+  downloadMediaMessage,
 } from '@whiskeysockets/baileys';
 
-import { ASSISTANT_HAS_OWN_NUMBER, ASSISTANT_NAME, STORE_DIR } from '../config.js';
+import { ASSISTANT_HAS_OWN_NUMBER, ASSISTANT_NAME, GROUPS_DIR, STORE_DIR } from '../config.js';
 import {
   getLastGroupSync,
   setLastGroupSync,
@@ -26,6 +28,45 @@ export interface WhatsAppChannelOpts {
   onMessage: OnInboundMessage;
   onChatMetadata: OnChatMetadata;
   registeredGroups: () => Record<string, RegisteredGroup>;
+}
+async function transcribeAudio(audioBuffer: Buffer, mimetype: string): Promise<string | null> {
+  const tmpDir = os.tmpdir();
+  const timestamp = Date.now();
+  const inputExt = mimetype.includes('ogg') ? 'ogg' : 'mp4';
+  const inputPath = path.join(tmpDir, `nanoclaw-audio-${timestamp}.${inputExt}`);
+  const wavPath = path.join(tmpDir, `nanoclaw-audio-${timestamp}.wav`);
+
+  try {
+    // Write audio buffer to temp file
+    fs.writeFileSync(inputPath, audioBuffer);
+
+    // Convert to wav using ffmpeg (whisper works best with wav)
+    execSync(`ffmpeg -i ${inputPath} -ar 16000 -ac 1 -c:a pcm_s16le ${wavPath} -y -loglevel quiet`);
+
+    // Run whisper transcription
+    const whisperBin = '/home/gr_anil/nanoclaw-poc/nanoclaw/nanoclaw-venv/bin/whisper';
+    const result = execSync(
+      `${whisperBin} ${wavPath} --model tiny --language en --output_format txt --output_dir ${tmpDir}`,
+      { encoding: 'utf8' }
+    );
+
+    // Read the output txt file whisper creates
+    const txtPath = wavPath.replace('.wav', '.txt');
+    if (fs.existsSync(txtPath)) {
+      const transcription = fs.readFileSync(txtPath, 'utf8').trim();
+      fs.unlinkSync(txtPath);
+      return transcription || null;
+    }
+
+    return null;
+  } catch (err) {
+    logger.error({ err }, 'Audio transcription failed');
+    return null;
+  } finally {
+    // Clean up temp files
+    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+    if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+  }
 }
 
 export class WhatsAppChannel implements Channel {
@@ -172,12 +213,78 @@ export class WhatsAppChannel implements Channel {
         // Only deliver full message for registered groups
         const groups = this.opts.registeredGroups();
         if (groups[chatJid]) {
-          const content =
+          let content =
             msg.message?.conversation ||
             msg.message?.extendedTextMessage?.text ||
             msg.message?.imageMessage?.caption ||
             msg.message?.videoMessage?.caption ||
             '';
+
+          // Handle audio/voice messages via Whisper STT
+          // const audioMsg = msg.message?.audioMessage || msg.message?.ptvMessage;
+          const audioMsg = msg.message?.audioMessage;
+          if (!content && audioMsg) {
+            try {
+              logger.info({ jid: chatJid }, 'Audio message received, transcribing...');
+              // Send a "thinking" indicator
+              await this.sendMessage(chatJid, '🎙️ Transcribing your voice message...');
+              // const audioBuffer = await this.sock.downloadMediaMessage(msg, 'buffer', {});
+              // const { downloadMediaMessage } = await import('@whiskeysockets/baileys');
+              // const audioBuffer = await downloadMediaMessage(msg, 'buffer', {});
+              const audioBuffer = await downloadMediaMessage(msg, 'buffer', {});
+              const mimetype = audioMsg.mimetype || 'audio/ogg';
+              const transcription = await transcribeAudio(audioBuffer as Buffer, mimetype);
+              if (transcription) {
+                logger.info({ transcription }, 'Transcription successful');
+                content = `[Voice message transcribed]: ${transcription}`;
+              } else {
+                await this.sendMessage(chatJid, '❌ Could not transcribe audio. Please try again or type your message.');
+                continue;
+              }
+            } catch (err) {
+              logger.error({ err }, 'Failed to process audio message');
+              continue;
+            }
+          }
+
+          // Handle document/image/video attachments
+          const docMsg = msg.message?.documentMessage;
+          const imgMsg = !content ? msg.message?.imageMessage : undefined;
+          const vidMsg = !content ? msg.message?.videoMessage : undefined;
+          const mediaMsg = docMsg || imgMsg || vidMsg;
+
+          if (mediaMsg) {
+            try {
+              const groupFolder = groups[chatJid]?.folder;
+              if (groupFolder) {
+                const attachmentsDir = path.join(GROUPS_DIR, groupFolder, 'attachments');
+                fs.mkdirSync(attachmentsDir, { recursive: true });
+
+                // Derive filename
+                let fileName: string;
+                if (docMsg?.fileName) {
+                  fileName = docMsg.fileName;
+                } else {
+                  const ext = (mediaMsg.mimetype || 'application/octet-stream').split('/')[1]?.split(';')[0] || 'bin';
+                  fileName = `attachment-${Date.now()}.${ext}`;
+                }
+
+                // Sanitize filename
+                fileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+                const filePath = path.join(attachmentsDir, fileName);
+                const mediaBuffer = await downloadMediaMessage(msg, 'buffer', {});
+                fs.writeFileSync(filePath, mediaBuffer as Buffer);
+
+                logger.info({ jid: chatJid, fileName, size: (mediaBuffer as Buffer).length }, 'Attachment saved');
+
+                const attachmentNote = `[Attachment: ${fileName} saved to attachments/${fileName}]`;
+                content = content ? `${content}\n${attachmentNote}` : attachmentNote;
+              }
+            } catch (err) {
+              logger.error({ err }, 'Failed to save attachment');
+            }
+          }
 
           // Skip protocol messages with no text content (encryption keys, read receipts, etc.)
           if (!content) continue;

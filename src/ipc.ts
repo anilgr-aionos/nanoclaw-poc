@@ -5,10 +5,12 @@ import { CronExpressionParser } from 'cron-parser';
 
 import {
   DATA_DIR,
+  GROUPS_DIR,
   IPC_POLL_INTERVAL,
   MAIN_GROUP_FOLDER,
   TIMEZONE,
 } from './config.js';
+import { sendEmail } from './email.js';
 import { AvailableGroup } from './container-runner.js';
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
 import { isValidGroupFolder } from './group-folder.js';
@@ -170,6 +172,13 @@ export async function processTaskIpc(
     trigger?: string;
     requiresTrigger?: boolean;
     containerConfig?: RegisteredGroup['containerConfig'];
+    // For send_whatsapp
+    text?: string;
+    // For send_email
+    to?: string;
+    subject?: string;
+    body?: string;
+    attachmentPath?: string;
   },
   sourceGroup: string, // Verified identity from IPC directory
   isMain: boolean, // Verified from directory path
@@ -378,6 +387,49 @@ export async function processTaskIpc(
           { data },
           'Invalid register_group request - missing required fields',
         );
+      }
+      break;
+
+    case 'send_email':
+      if (data.to && data.subject && data.body !== undefined) {
+        let resolvedAttachmentPath: string | undefined;
+        if (data.attachmentPath) {
+          // Path is relative to workspace = groups/{folder}
+          const candidate = path.join(GROUPS_DIR, sourceGroup, data.attachmentPath);
+          // Prevent path traversal: ensure it stays within the group folder
+          const groupRoot = path.join(GROUPS_DIR, sourceGroup);
+          if (candidate.startsWith(groupRoot + path.sep) || candidate === groupRoot) {
+            resolvedAttachmentPath = candidate;
+          } else {
+            logger.warn({ attachmentPath: data.attachmentPath, sourceGroup }, 'Blocked path traversal in send_email');
+          }
+        }
+        try {
+          await sendEmail({
+            to: data.to,
+            subject: data.subject,
+            body: data.body,
+            attachmentPath: resolvedAttachmentPath,
+          });
+          logger.info({ to: data.to, sourceGroup }, 'Email sent via IPC');
+        } catch (err) {
+          logger.error({ err, to: data.to, sourceGroup }, 'Failed to send email via IPC');
+        }
+      } else {
+        logger.warn({ data }, 'Invalid send_email request - missing to, subject, or body');
+      }
+      break;
+
+    case 'send_whatsapp':
+      if (!isMain) {
+        logger.warn({ sourceGroup }, 'Unauthorized send_whatsapp attempt blocked');
+        break;
+      }
+      if (data.jid && data.text) {
+        await deps.sendMessage(data.jid, data.text);
+        logger.info({ jid: data.jid, sourceGroup }, 'send_whatsapp sent via IPC');
+      } else {
+        logger.warn({ data }, 'Invalid send_whatsapp request - missing jid or text');
       }
       break;
 

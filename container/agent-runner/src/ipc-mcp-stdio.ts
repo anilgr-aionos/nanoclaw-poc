@@ -280,6 +280,77 @@ Use available_groups.json to find the JID for a group. The folder name should be
   },
 );
 
+server.tool(
+  'send_email',
+  `Send an email via Outlook (Microsoft Graph). Optionally attach a file from the workspace.
+
+attachment_path: path relative to /workspace (e.g., "attachments/report.pdf"). Leave empty if no attachment.`,
+  {
+    to: z.string().describe('Recipient email address'),
+    subject: z.string().describe('Email subject'),
+    body: z.string().describe('Email body (plain text)'),
+    attachment_path: z.string().optional().describe('File to attach, relative to /workspace (e.g., "attachments/report.pdf")'),
+  },
+  async (args) => {
+    const data: Record<string, string | undefined> = {
+      type: 'send_email',
+      to: args.to,
+      subject: args.subject,
+      body: args.body,
+      attachmentPath: args.attachment_path,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(TASKS_DIR, data);
+
+    return {
+      content: [{ type: 'text' as const, text: `Email queued for ${args.to}${args.attachment_path ? ` with attachment ${args.attachment_path}` : ''}.` }],
+    };
+  },
+);
+
+server.tool(
+  'send_whatsapp',
+  `Send a WhatsApp message to any phone number. Main group only.
+
+Phone number formats accepted: +919810387663, 919810387663 (with country code).
+The recipient does not need to be registered with NanoClaw.`,
+  {
+    phone: z.string().describe('Phone number with country code (e.g., +919810387663)'),
+    text: z.string().describe('Message text to send'),
+  },
+  async (args) => {
+    if (!isMain) {
+      return {
+        content: [{ type: 'text' as const, text: 'send_whatsapp is only available from the main group.' }],
+        isError: true,
+      };
+    }
+
+    const digits = args.phone.replace(/\D/g, '');
+    if (digits.length < 7 || digits.length > 15) {
+      return {
+        content: [{ type: 'text' as const, text: `Invalid phone number: "${args.phone}". Provide a number with country code, e.g. +919810387663.` }],
+        isError: true,
+      };
+    }
+
+    const jid = `${digits}@s.whatsapp.net`;
+
+    const data = {
+      type: 'send_whatsapp',
+      jid,
+      text: args.text,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(TASKS_DIR, data);
+
+    return { content: [{ type: 'text' as const, text: `Message queued for ${args.phone}.` }] };
+  },
+);
+
 // Start the stdio transport
 const transport = new StdioServerTransport();
 await server.connect(transport);
